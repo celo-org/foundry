@@ -40,7 +40,7 @@ use alloy_consensus::{
     transaction::Recovered,
 };
 use alloy_eips::{eip1559::BaseFeeParams, eip7840::BlobParams};
-use alloy_evm::{Database, Evm, eth::EthEvmContext, precompiles::PrecompilesMap};
+use alloy_evm::{Database, Evm, eth::EthEvmContext};
 use alloy_network::{
     AnyHeader, AnyRpcBlock, AnyRpcHeader, AnyRpcTransaction, AnyTxEnvelope, AnyTxType,
     EthereumWallet, UnknownTxEnvelope, UnknownTypedTransaction,
@@ -1144,7 +1144,7 @@ impl Backend {
     ) -> EitherEvm<
         WrapDatabaseRef<&'db dyn DatabaseRef<Error = DatabaseError>>,
         &'db mut I,
-        PrecompilesMap,
+        crate::HybridPrecompileProvider,
     >
     where
         I: Inspector<EthEvmContext<WrapDatabaseRef<&'db dyn DatabaseRef<Error = DatabaseError>>>>

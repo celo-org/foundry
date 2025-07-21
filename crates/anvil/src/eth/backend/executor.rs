@@ -1,5 +1,5 @@
 use crate::{
-    PrecompileFactory,
+    HybridPrecompileProvider, PrecompileFactory,
     eth::{
         backend::{
             db::Db, env::Env, mem::op_haltreason_to_instruction_result,
@@ -426,7 +426,7 @@ pub fn new_evm_with_inspector<DB, I>(
     db: DB,
     env: &Env,
     inspector: I,
-) -> EitherEvm<DB, I, PrecompilesMap>
+) -> EitherEvm<DB, I, HybridPrecompileProvider>
 where
     DB: Database<Error = DatabaseError>,
     I: Inspector<EthEvmContext<DB>> + Inspector<OpContext<DB>>,
@@ -453,7 +453,7 @@ where
             op_context,
             inspector,
             EthInstructions::default(),
-            PrecompilesMap::from_static(op_precompiles),
+            HybridPrecompileProvider::standard_only(PrecompilesMap::from_static(op_precompiles)),
         ));
 
         let op = OpEvm::new(op_evm, true);
@@ -484,7 +484,9 @@ where
             eth_context,
             inspector,
             EthInstructions::default(),
-            PrecompilesMap::from_static(eth_precompiles),
+            // TODO: Only use standard precompiles here and pull out version with stateful
+            // precompiles into a Celo-specific version of the Optimism branch.
+            HybridPrecompileProvider::new(PrecompilesMap::from_static(eth_precompiles)),
         );
 
         let eth = EthEvm::new(eth_evm, true);
@@ -498,7 +500,7 @@ pub fn new_evm_with_inspector_ref<'db, DB, I>(
     db: &'db DB,
     env: &Env,
     inspector: &'db mut I,
-) -> EitherEvm<WrapDatabaseRef<&'db DB>, &'db mut I, PrecompilesMap>
+) -> EitherEvm<WrapDatabaseRef<&'db DB>, &'db mut I, HybridPrecompileProvider>
 where
     DB: DatabaseRef<Error = DatabaseError> + 'db + ?Sized,
     I: Inspector<EthEvmContext<WrapDatabaseRef<&'db DB>>>

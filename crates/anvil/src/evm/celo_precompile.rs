@@ -51,11 +51,19 @@ pub fn celo_transfer_precompile<CTX: ContextTr>(
 
     eprintln!("\t[Celo Transfer] from: {from_address:?}, to: {to_address:?}, value: {value}");
 
-    // Perform the transfer using JournalTr.transfer
-    if let Err(e) = context.journal().transfer(from_address, to_address, value) {
-        eprintln!("[Celo Transfer] Transfer failed: {e:?}");
-        result.result = InstructionResult::PrecompileError;
-        return Ok(Some(result));
+    // Perform the transfer using JournalTr.transfer and handle transfer errors
+    match context.journal().transfer(from_address, to_address, value) {
+        Ok(None) => {
+            // Transfer successful, continue
+        }
+        Ok(Some(transfer_error)) => {
+            eprintln!("[Celo Transfer] Transfer failed: {transfer_error:?}");
+            return Err(format!("Celo transfer failed: {transfer_error:?}"));
+        }
+        Err(e) => {
+            eprintln!("[Celo Transfer] Journal error: {e:?}");
+            return Err(format!("Celo transfer journal error: {e:?}"));
+        }
     }
 
     eprintln!("\t[Celo Transfer] Transfer successful");

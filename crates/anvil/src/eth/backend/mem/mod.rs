@@ -45,7 +45,6 @@ use alloy_evm::{
     Database, Evm,
     eth::EthEvmContext,
     overrides::{OverrideBlockHashes, apply_state_overrides},
-    precompiles::PrecompilesMap,
 };
 use alloy_network::{
     AnyHeader, AnyRpcBlock, AnyRpcHeader, AnyRpcTransaction, AnyTxEnvelope, AnyTxType,
@@ -1162,7 +1161,7 @@ impl Backend {
         db: &'db DB,
         env: &Env,
         inspector: &'db mut I,
-    ) -> EitherEvm<WrapDatabaseRef<&'db DB>, &'db mut I, PrecompilesMap>
+    ) -> EitherEvm<WrapDatabaseRef<&'db DB>, &'db mut I, crate::HybridPrecompileProvider>
     where
         DB: DatabaseRef + ?Sized,
         I: Inspector<EthEvmContext<WrapDatabaseRef<&'db DB>>>

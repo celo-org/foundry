@@ -3,11 +3,15 @@ use std::fmt::Debug;
 use alloy_evm::{
     Database, Evm,
     eth::EthEvmContext,
-    precompiles::{DynPrecompile, PrecompileInput, PrecompilesMap},
+    precompiles::{DynPrecompile, PrecompileInput},
 };
 use foundry_evm_core::either_evm::EitherEvm;
 use op_revm::OpContext;
 use revm::{Inspector, precompile::PrecompileWithAddress};
+
+mod celo_precompile;
+mod stateful_precompile;
+pub use stateful_precompile::HybridPrecompileProvider;
 
 /// Object-safe trait that enables injecting extra precompiles when using
 /// `anvil` as a library.
@@ -18,14 +22,14 @@ pub trait PrecompileFactory: Send + Sync + Unpin + Debug {
 
 /// Inject precompiles into the EVM dynamically.
 pub fn inject_precompiles<DB, I>(
-    evm: &mut EitherEvm<DB, I, PrecompilesMap>,
+    evm: &mut EitherEvm<DB, I, HybridPrecompileProvider>,
     precompiles: Vec<(PrecompileWithAddress, u64)>,
 ) where
     DB: Database,
     I: Inspector<EthEvmContext<DB>> + Inspector<OpContext<DB>>,
 {
     for (PrecompileWithAddress(addr, func), gas) in precompiles {
-        evm.precompiles_mut().apply_precompile(&addr, move |_| {
+        evm.precompiles_mut().standard_precompiles.apply_precompile(&addr, move |_| {
             Some(DynPrecompile::from(move |input: PrecompileInput<'_>| func(input.data, gas)))
         });
     }
@@ -55,7 +59,7 @@ mod tests {
         primitives::hardfork::SpecId,
     };
 
-    use crate::{PrecompileFactory, inject_precompiles};
+    use crate::{HybridPrecompileProvider, PrecompileFactory, inject_precompiles};
 
     // A precompile activated in the `Prague` spec.
     const ETH_PRAGUE_PRECOMPILE: Address = address!("0x0000000000000000000000000000000000000011");
@@ -91,8 +95,10 @@ mod tests {
     /// Creates a new EVM instance with the custom precompile factory.
     fn create_eth_evm(
         spec: SpecId,
-    ) -> (foundry_evm::Env, EitherEvm<EmptyDBTyped<Infallible>, NoOpInspector, PrecompilesMap>)
-    {
+    ) -> (
+        foundry_evm::Env,
+        EitherEvm<EmptyDBTyped<Infallible>, NoOpInspector, HybridPrecompileProvider>,
+    ) {
         let eth_env = foundry_evm::Env {
             evm_env: EvmEnv { block_env: Default::default(), cfg_env: CfgEnv::new_with_spec(spec) },
             tx: TxEnv {
@@ -122,7 +128,9 @@ mod tests {
                 eth_evm_context,
                 NoOpInspector,
                 EthInstructions::<EthInterpreter, EthEvmContext<EmptyDB>>::default(),
-                PrecompilesMap::from_static(eth_precompiles),
+                HybridPrecompileProvider::standard_only(PrecompilesMap::from_static(
+                    eth_precompiles,
+                )),
             ),
             true,
         ));
@@ -136,7 +144,7 @@ mod tests {
         op_spec: OpSpecId,
     ) -> (
         crate::eth::backend::env::Env,
-        EitherEvm<EmptyDBTyped<Infallible>, NoOpInspector, PrecompilesMap>,
+        EitherEvm<EmptyDBTyped<Infallible>, NoOpInspector, HybridPrecompileProvider>,
     ) {
         let op_env = crate::eth::backend::env::Env {
             evm_env: EvmEnv { block_env: Default::default(), cfg_env: CfgEnv::new_with_spec(spec) },
@@ -180,7 +188,9 @@ mod tests {
                 op_evm_context,
                 NoOpInspector,
                 EthInstructions::<EthInterpreter, OpContext<EmptyDB>>::default(),
-                PrecompilesMap::from_static(op_precompiles),
+                HybridPrecompileProvider::standard_only(PrecompilesMap::from_static(
+                    op_precompiles,
+                )),
             )),
             true,
         ));

@@ -114,6 +114,7 @@ pub struct TransactionExecutor<'a, Db: ?Sized, V: TransactionValidator> {
     pub enable_steps_tracing: bool,
     pub odyssey: bool,
     pub optimism: bool,
+    pub celo: bool,
     pub print_logs: bool,
     pub print_traces: bool,
     /// Precompiles to inject to the EVM.
@@ -256,7 +257,7 @@ impl<DB: Db + ?Sized, V: TransactionValidator> TransactionExecutor<'_, DB, V> {
             tx_env.enveloped_tx = Some(alloy_rlp::encode(&tx.transaction.transaction).into());
         }
 
-        Env::new(self.cfg_env.clone(), self.block_env.clone(), tx_env, self.optimism)
+        Env::new(self.cfg_env.clone(), self.block_env.clone(), tx_env, self.optimism, self.celo)
     }
 }
 
@@ -453,7 +454,12 @@ where
             op_context,
             inspector,
             EthInstructions::default(),
-            HybridPrecompileProvider::standard_only(PrecompilesMap::from_static(op_precompiles)),
+            // Conditionally enable Celo precompile based on the is_celo flag
+            if env.is_celo {
+                HybridPrecompileProvider::new(PrecompilesMap::from_static(op_precompiles))
+            } else {
+                HybridPrecompileProvider::standard_only(PrecompilesMap::from_static(op_precompiles))
+            },
         ));
 
         let op = OpEvm::new(op_evm, true);
@@ -484,9 +490,7 @@ where
             eth_context,
             inspector,
             EthInstructions::default(),
-            // TODO: Only use standard precompiles here and pull out version with stateful
-            // precompiles into a Celo-specific version of the Optimism branch.
-            HybridPrecompileProvider::new(PrecompilesMap::from_static(eth_precompiles)),
+            HybridPrecompileProvider::standard_only(PrecompilesMap::from_static(eth_precompiles)),
         );
 
         let eth = EthEvm::new(eth_evm, true);

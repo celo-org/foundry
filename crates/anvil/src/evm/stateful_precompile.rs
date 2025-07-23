@@ -65,9 +65,11 @@ where
         is_static: bool,
         gas_limit: u64,
     ) -> Result<Option<Self::Output>, String> {
-        // Check if this is the Celo transfer precompile
-        if address == &CELO_TRANSFER_ADDRESS {
-            return celo_transfer_precompile(context, inputs, gas_limit);
+        if self.stateful_precompile_addresses.contains(address) {
+            // Check if this is the Celo transfer precompile
+            if address == &CELO_TRANSFER_ADDRESS {
+                return celo_transfer_precompile(context, inputs, gas_limit);
+            }
         }
 
         // Fall back to standard precompiles
